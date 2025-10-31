@@ -2,13 +2,14 @@ from flask import Flask, render_template, request, jsonify, session
 import requests
 import secrets
 import os
+import time
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # Your Hugging Face API token
 API_TOKEN = os.getenv('HF_TOKEN')
-MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct:together"  # Specify provider
+MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct:together"
 API_URL = "https://router.huggingface.co/v1/chat/completions"
 
 @app.route('/')
@@ -34,7 +35,7 @@ def chat():
             "content": user_message
         })
         
-        # Call the OpenAI-compatible API
+        # Call the API with automatic retries
         headers = {
             "Authorization": f"Bearer {API_TOKEN}",
             "Content-Type": "application/json"
@@ -47,11 +48,32 @@ def chat():
             "temperature": 0.7
         }
         
-        response = requests.post(API_URL, headers=headers, json=payload)
-        response.raise_for_status()
+        # Retry up to 3 times for 503 errors
+        max_retries = 3
+        last_error = None
         
-        result = response.json()
-        assistant_message = result['choices'][0]['message']['content']
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+                
+                if response.status_code == 503 and attempt < max_retries - 1:
+                    print(f"Got 503, retrying... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                    continue
+                
+                response.raise_for_status()
+                result = response.json()
+                assistant_message = result['choices'][0]['message']['content']
+                break
+                
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    print(f"Request failed, retrying... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(2 ** attempt)
+                    continue
+                else:
+                    raise
         
         # Add assistant response to history
         session['history'].append({
@@ -75,8 +97,14 @@ def chat():
         error_details = traceback.format_exc()
         print(f"CHAT ERROR: {str(e)}")
         print(f"FULL TRACEBACK: {error_details}")
+        
+        # Return user-friendly error message
+        error_msg = "The AI service is temporarily busy. Please try again in a moment."
+        if "503" in str(e):
+            error_msg = "The AI is experiencing high demand. Please wait a moment and try again."
+        
         return jsonify({
-            'error': str(e),
+            'error': error_msg,
             'status': 'error'
         }), 500
 
