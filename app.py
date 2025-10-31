@@ -34,15 +34,22 @@ def chat():
             "content": user_message
         })
         
-        # Get response from Llama 4 Scout
-        response = client.chat_completion.create(
-            messages=session['history'],
+        # Format messages for the model
+        messages_text = ""
+        for msg in session['history']:
+            role = msg['role'].capitalize()
+            messages_text += f"{role}: {msg['content']}\n"
+        messages_text += "Assistant:"
+        
+        # Get response from Llama 4 Scout using text_generation
+        response_text = client.text_generation(
+            messages_text,
             model=MODEL,
-            max_tokens=500,
+            max_new_tokens=500,
             temperature=0.7
         )
         
-        assistant_message = response.choices[0].message.content
+        assistant_message = response_text.strip()
         
         # Add assistant response to history
         session['history'].append({
@@ -78,8 +85,5 @@ def reset():
     return jsonify({'status': 'success', 'message': 'Conversation reset'})
 
 if __name__ == '__main__':
-    # Create templates directory if it doesn't exist
     os.makedirs('templates', exist_ok=True)
-    
-    # Run on all interfaces so it's accessible from other devices
     app.run(host='0.0.0.0', port=5001, debug=True)
