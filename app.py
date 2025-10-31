@@ -8,8 +8,8 @@ app.secret_key = secrets.token_hex(16)
 
 # Your Hugging Face API token
 API_TOKEN = os.getenv('HF_TOKEN')
-MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
-API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL}"
+MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct:together"  # Specify provider
+API_URL = "https://router.huggingface.co/v1/chat/completions"
 
 @app.route('/')
 def home():
@@ -34,40 +34,24 @@ def chat():
             "content": user_message
         })
         
-        # Format messages for the model
-        messages_text = ""
-        for msg in session['history']:
-            role = msg['role'].capitalize()
-            messages_text += f"{role}: {msg['content']}\n"
-        messages_text += "Assistant:"
-        
-        # Call the API directly
+        # Call the OpenAI-compatible API
         headers = {
             "Authorization": f"Bearer {API_TOKEN}",
             "Content-Type": "application/json"
         }
         
         payload = {
-            "inputs": messages_text,
-            "parameters": {
-                "max_new_tokens": 500,
-                "temperature": 0.7,
-                "return_full_text": False
-            }
+            "model": MODEL,
+            "messages": session['history'],
+            "max_tokens": 500,
+            "temperature": 0.7
         }
         
         response = requests.post(API_URL, headers=headers, json=payload)
         response.raise_for_status()
         
         result = response.json()
-        
-        # Extract the generated text
-        if isinstance(result, list) and len(result) > 0:
-            assistant_message = result[0].get('generated_text', '').strip()
-        elif isinstance(result, dict):
-            assistant_message = result.get('generated_text', '').strip()
-        else:
-            assistant_message = str(result)
+        assistant_message = result['choices'][0]['message']['content']
         
         # Add assistant response to history
         session['history'].append({
