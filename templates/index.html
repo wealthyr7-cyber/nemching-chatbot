@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nemching ChatBot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 24px 24px 0 0;
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        .message-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .message-content {
+            padding: 14px 18px;
+            border-radius: 18px;
+            max-width: 70%;
+            line-height: 1.5;
+        }
+        .message.assistant .message-content {
+            background: #f5f5f5;
+        }
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+            border-radius: 0 0 24px 24px;
+        }
+        .chat-input-form {
+            display: flex;
+            gap: 12px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #f0f0f0;
+            border-radius: 14px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: #f093fb;
+        }
+        .send-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .send-btn:disabled {
+            opacity: 0.5;
+        }
+        .typing-indicator {
+            display: none;
+            padding: 10px 20px;
+            align-items: center;
+            gap: 12px;
+        }
+        .typing-indicator.active {
+            display: flex;
+        }
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+        }
+        .typing-dots span {
+            width: 10px;
+            height: 10px;
+            background: #f093fb;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-title">
+                <span>👧</span>
+                <span>Nemching ChatBot</span>
+            </div>
+            <button class="reset-btn" onclick="resetChat()">Reset</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-avatar">👧</div>
+                <div class="message-content">Hi! I'm Nemching, your AI assistant. How can I help you today? 💕</div>
+            </div>
+        </div>
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="message-avatar">👧</div>
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+        </div>
+        <div class="chat-input-container">
+            <form class="chat-input-form" onsubmit="sendMessage(event)">
+                <input type="text" class="chat-input" id="messageInput" placeholder="Type your message..." required>
+                <button type="submit" class="send-btn" id="sendBtn">Send</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        function addMessage(content, isUser) {
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user' : 'assistant'}`;
+            div.innerHTML = `
+                <div class="message-avatar">${isUser ? '👤' : '👧'}</div>
+                <div class="message-content">${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            addMessage(message, true);
+            messageInput.value = '';
+            typingIndicator.classList.add('active');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: message})
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    addMessage(data.response, false);
+                }
+            } catch (error) {
+                alert('Error: ' + error);
+            } finally {
+                typingIndicator.classList.remove('active');
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        async function resetChat() {
+            if (!confirm('Reset conversation?')) return;
+            await fetch('/reset', {method: 'POST'});
+            chatMessages.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-avatar">👧</div>
+                    <div class="message-content">Conversation reset! How can I help you? 💕</div>
+                </div>
+            `;
+        }
+        messageInput.focus();
+    </script>
+</body>
+</html>

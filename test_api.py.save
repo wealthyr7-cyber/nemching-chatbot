@@ -1,0 +1,27 @@
+import requests
+
+# Your NEW API token
+API_TOKEN = ""
+
+# NEW endpoint (router.huggingface.co instead of api-inference)
+API_URL = "https://router.huggingface.co/hf-inference/models/gpt2"
+
+headers = {"Authorization": f"Bearer {API_TOKEN}"}
+payload = {"inputs": "Hello, how are you?"}
+
+print(f"Testing NEW API: {API_URL}")
+response = requests.post(API_URL, headers=headers, json=payload)
+
+print(f"Status Code: {response.status_code}")
+print(f"Response Text: {response.text[:500]}")
+
+if response.status_code == 200:
+    try:
+        result = response.json()
+        print(f"\n✓ Success! Response: {result}")
+    except Exception as e:
+        print(f"JSON parse error: {e}")
+elif response.status_code == 503:
+    print("Model is loading, wait and try again")
+else:
+    print(f"Error {response.status_code}")
