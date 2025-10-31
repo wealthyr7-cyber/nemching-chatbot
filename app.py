@@ -7,8 +7,7 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # Your Hugging Face API token
-import os
-API_TOKEN = os.getenv('HF_TOKEN')  # Replace with your actual token
+API_TOKEN = os.getenv('HF_TOKEN')
 client = InferenceClient(token=API_TOKEN)
 MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 
@@ -51,7 +50,7 @@ def chat():
             "content": assistant_message
         })
         
-        # Keep only last 10 messages to manage context
+        # Keep only last 20 messages to manage context
         if len(session['history']) > 20:
             session['history'] = session['history'][-20:]
         
@@ -63,6 +62,10 @@ def chat():
         })
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"CHAT ERROR: {str(e)}")
+        print(f"FULL TRACEBACK: {error_details}")
         return jsonify({
             'error': str(e),
             'status': 'error'
