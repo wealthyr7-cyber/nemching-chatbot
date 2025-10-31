@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
-from huggingface_hub import InferenceClient
+import requests
 import secrets
 import os
 
@@ -8,8 +8,8 @@ app.secret_key = secrets.token_hex(16)
 
 # Your Hugging Face API token
 API_TOKEN = os.getenv('HF_TOKEN')
-client = InferenceClient(token=API_TOKEN)
 MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL}"
 
 @app.route('/')
 def home():
@@ -41,15 +41,33 @@ def chat():
             messages_text += f"{role}: {msg['content']}\n"
         messages_text += "Assistant:"
         
-        # Get response from Llama 4 Scout using text_generation
-        response_text = client.text_generation(
-            messages_text,
-            model=MODEL,
-            max_new_tokens=500,
-            temperature=0.7
-        )
+        # Call the API directly
+        headers = {
+            "Authorization": f"Bearer {API_TOKEN}",
+            "Content-Type": "application/json"
+        }
         
-        assistant_message = response_text.strip()
+        payload = {
+            "inputs": messages_text,
+            "parameters": {
+                "max_new_tokens": 500,
+                "temperature": 0.7,
+                "return_full_text": False
+            }
+        }
+        
+        response = requests.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Extract the generated text
+        if isinstance(result, list) and len(result) > 0:
+            assistant_message = result[0].get('generated_text', '').strip()
+        elif isinstance(result, dict):
+            assistant_message = result.get('generated_text', '').strip()
+        else:
+            assistant_message = str(result)
         
         # Add assistant response to history
         session['history'].append({
