@@ -35,7 +35,7 @@ def chat():
         })
         
         # Get response from Llama 4 Scout
-        response = client.chat_completion(
+        response = client.chat_completion.create(
             messages=session['history'],
             model=MODEL,
             max_tokens=500,
